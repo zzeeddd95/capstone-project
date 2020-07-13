@@ -1,0 +1,161 @@
+---
+title: "Twitter sentiment analysis 1"
+author: "Ziyad Abdulaziz"
+date: "13/07/2020"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(SnowballC)
+library(textclean)
+library(syuzhet)
+library(rtweet)
+library(devtools)
+library(tibble)
+library(ROAuth)
+library(purrr)
+library(stringr)
+library(dplyr)
+library(twitteR)
+library(RCurl)
+library(XML)
+library(tm.plugin.sentiment)
+library(tm)
+library(wordcloud2)
+library(ggplot2)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r}
+#connecting to twitter
+
+consumer_key <- "jHHSo1xVw0mhp1cyFTac86nK3"
+consumer_secret <- "sEMM8ed0DVd8j9DaKnta8UkzEaMLdzwoYAet8mf3MWiitVewQp"
+access_token <- "244645993-QrRcQWJXOb5SGBI8W6jxIL0uYMk686TIIGKn9a7Q"
+access_secret <- "mZ1aa2TsvWDqfBVMU2GUEHUiglTjkmQQ7KUimGFGQ0ilP"
+setup_twitter_oauth(consumer_key, consumer_secret, access_token, access_secret)
+```
+
+
+```{r}
+#Obtaining the first set of tweets
+peter <- userTimeline("PeterLBrandt", n=1000)
+josephburns <- userTimeline("SJosephBurns", n=1000)
+elerian <- userTimeline("elerianm", n = 1000)
+ibd <- userTimeline("IBDinvestors", n = 1000)
+bespoke <- userTimeline("bespokeinvest", n = 1000)
+marketwatch <- userTimeline("MarketWatch", n = 1000)
+appletweet <- searchTwitter("$AAPL", n=1000, lang = 'en')
+msfttweet <- searchTwitter("$MSFT", n = 1000,lang = 'en')
+amazontweet <- searchTwitter("$AMZN", n=1000, lang = 'en')
+googletweet <- searchTwitter("$GOOG", n = 1000, lang = 'en')
+nastweet <- searchTwitter("$NASDAQ", n = 1000, lang = 'en')
+#Transforming to dataframe
+tweets1 <- tbl_df(map_df(c(peter, josephburns, elerian, ibd, bespoke, marketwatch, appletweet, msfttweet, googletweet, nastweet), as.data.frame))
+#Saving into CSV
+write.csv(tweets1, file = "tweets1.csv", row.names = FALSE)
+```
+
+
+```{r}
+#setworking directory and read in data
+
+setwd("C:/Users/ziyad/Desktop/Data Analytics capstone")
+tweets1 <- read.csv("tweets1.csv")
+```
+
+
+```{r}
+#twitter data cleanup for dataset1
+
+twittercorpus1 <- Corpus(VectorSource(tweets1$text))
+inspect(twittercorpus1[1:10])
+
+twittercorpus1 <- tm_map(twittercorpus1, content_transformer(tolower))
+twittercorpus1 <- tm_map(twittercorpus1, removeWords, stopwords("en"))
+twittercorpus1 <- tm_map(twittercorpus1, removeNumbers)
+twittercorpus1 <- tm_map(twittercorpus1, removePunctuation)
+removeURLhttp1 <- function(x) gsub ("http[[:alnum:]]*", "", x)
+twittercorpus1 <- tm_map(twittercorpus1, content_transformer(removeURLhttp1))
+removeURLedua1 <- function(x) gsub ("edua[[:alnum:]]*", "", x)
+twittercorpus1 <- tm_map(twittercorpus1, content_transformer(removeURLedua1))
+removeNonAscii <- function(x) textclean::replace_non_ascii(x)
+twittercorpus1 <- tm_map (twittercorpus1,content_transformer(removeNonAscii))
+twittercorpus1 <- tm_map(twittercorpus1, stripWhitespace)
+twittercorpus1 <- tm_map(twittercorpus1, removeWords, c('cnbc','aapl','goog','msft','amzn','appl','apple','googl','microsoft','nasdaq','microsoft','amazon','gnusbrand','geniusbrand','schwarzenegg', 'lizclaman','daverubin','qqq','tsla','spi','superherokindergarten','nonsen','plain','play', 'trade','spi','stock','market','gnus'))
+mystopwords1 <- c(stopwords("en"), 'cnbc','aapl','goog','msft','amzn','appl','apple','googl','microsoft','nasdaq','microsoft','amazon','gnusbrand','geniusbrand','schwarzenegg', 'lizclaman','daverubin','qqq','tsla','spi','superherokindergarten','nonsen','plain','play', 'trade','spi','stock','market','gnus' )
+inspect(twittercorpus1[1:10])
+```
+
+
+```{r}
+#term document matrix for corpus 1 
+
+twittercorpus1 <- tm_map(twittercorpus1, stemDocument)
+dtm1 <- TermDocumentMatrix(twittercorpus1)
+dtm1
+termmatrix1 <- as.matrix(dtm1)
+termmatrix1[1:10, 1:20]
+freq=rowSums(as.matrix(termmatrix1))
+head(freq,10)
+tail(freq,10)
+plot(sort(freq, decreasing = T),col="blue",main="Term document matrix frequencies", xlab="Tf based rank", ylab = "TF")
+tail(sort(freq),n=10)
+
+#detailed term frequency barplot
+
+bp1 <- rowSums(termmatrix1)
+bp1 <- subset(bp1, bp1>=25)
+bp1
+barplot(bp1, las = 2, col = rainbow(100))
+```
+
+
+```{r}
+#Tf-IDF matrix for corpus 1
+
+tfidf1 <- TermDocumentMatrix(twittercorpus1, control = list(weighting = weightTfIdf, stopwords = mystopwords1, removePunctuation = T))
+tfidf1
+inspect(tfidf1[1:10,1:20])
+freq=rowSums(as.matrix(tfidf1))
+head(freq,10)
+tail(freq,10)
+plot(sort(freq, decreasing = T),col="blue",main="Word TF-IDF frequencies", xlab="TF-IDF-based rank", ylab = "TF-IDF")
+tail(sort(freq),n=10)
+
+high.freq=tail(sort(freq),n=10)
+hfp.df=as.data.frame(sort(high.freq))
+hfp.df$names <- rownames(hfp.df) 
+
+ggplot(hfp.df, aes(reorder(names,high.freq), high.freq)) +
+  geom_bar(stat="identity") + coord_flip() + 
+  xlab("Terms") + ylab("Frequency") +
+  ggtitle("Term frequencies")
+```
+
+
+```{r}
+#Creating the wordcloud
+
+cloud1 <- sort(rowSums(termmatrix1), decreasing = TRUE)
+cloud1 <- data.frame(names(cloud1), cloud1)
+colnames(cloud1) <- c('word', 'freq')
+wordcloud2(cloud1, size = 0.5, shape = 'circle', rotateRatio = 0.5, minSize = 1)
+```
+
+
+```{r}
+#sentiment analysis
+
+emotions1 <- get_nrc_sentiment(twittercorpus1$content)
+barplot(colSums(emotions1),cex.names = .7, col = rainbow(10), main = "sentiment scores for tweets1")
+
