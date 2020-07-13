@@ -1,5 +1,6 @@
 # capstone-project
-Predicting stock price movement via machine learning and sentiment analysis
+Predicting stock price movement via machine learning and sentiment analysis.
+
 The ability to predict how the stock market will perform on a given day is one of the most difficult tasks to achieve. 
 There are countless factors that can influence the price of a stock, all ranging from global pandemics, to tweets made by eccentric CEO’s. 
 All these aspects combine to make share prices extremely volatile and exceedingly difficult to predict with a high degree of accuracy.
